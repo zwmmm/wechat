@@ -1,6 +1,6 @@
-const init = require('./utils/init');
-const routes = require('./routes');
-const apis = require('./apis');
+import init from './utils/init';
+import routes from './store/routes';
+import apis from './store/apis';
 
 init({
     routes,

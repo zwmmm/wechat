@@ -1,46 +1,16 @@
+import util from './util';
+
 const _Page = Page;
 const _Component = Component;
 
 const ENVS = ['dev', 'pre', 'pro'];
-
-/**
- * 生成querystring
- * @param path
- * @param query
- * @returns {*}
- */
-const $createURL = (path, query) => {
-    if (!query) return path;
-    let tempArr = [];
-    for (let key in query) {
-        tempArr.push(`${key}=${encodeURIComponent(query[key])}`)
-    }
-    return path + '?' + tempArr.join('&');
-}
-
-/**
- * 回调函数转换成promise的形式
- * @param {*} fn: wx的异步api
- */
-const $promise = (fn) => {
-    return option => new Promise((resolve, reject) => {
-        fn.call(wx, {
-            ...option,
-            success: (...arg) => resolve.apply(null, arg),
-            fail: err => {
-                console.error(err);
-                reject(err)
-            },
-        });
-    });
-}
 
 function init(option) {
     const $routes = option.routes || {};
     const $baseURL = option.baseURL || {};
     const $apis = option.apis || {};
     const $header = option.header || {};
-    const WE_ENV = option.WE_ENV || 'pro';
+    const WE_ENV = option.WE_ENV || 'dev';
     const debug = option.debug || false;
 
     /**
@@ -114,7 +84,7 @@ function init(option) {
                 return;
             }
             ;
-            return $promise(type)({ url: $createURL(path, query) });
+            return util.promise(type)({ url: util.joinURL(path, query) });
         },
 
         /**
@@ -156,7 +126,7 @@ function init(option) {
          * @returns {*}
          */
         go: (delta = 1) => {
-            return $promise(wx.navigateBack)({ delta });
+            return util.promise(wx.navigateBack)({ delta });
         },
     };
 
@@ -169,25 +139,25 @@ function init(option) {
             if (isSync) {
                 return wx.getStorageSync(key);
             }
-            return $promise('getStorage')({ key });
+            return util.promise('getStorage')({ key });
         },
         set: (key, value, isSync) => {
             if (isSync) {
                 return wx.setStorageSync(key, value);
             }
-            return $promise('setStorage')({ key, data: value });
+            return util.promise('setStorage')({ key, data: value });
         },
         clear: (isSync) => {
             if (isSync) {
                 return wx.clearStorageSync();
             }
-            return $promise('clearStorage')();
+            return util.promise('clearStorage')();
         },
         info: (isSync) => {
             if (isSync) {
                 return wx.getStorageInfoSync();
             }
-            return $promise('getStorageInfo')();
+            return util.promise('getStorageInfo')();
         }
     };
 
@@ -218,13 +188,13 @@ function init(option) {
      */
     const $loading = {
         start: (title = '正在努力加载中...') => {
-            return $promise('showLoading')({
+            return util.promise('showLoading')({
                 title,
                 mask: true,
             })
         },
         end: () => {
-            return $promise('hideLoading')();
+            return util.promise('hideLoading')();
         }
     };
 
@@ -239,6 +209,7 @@ function init(option) {
         $storage,
         $message,
         $loading,
+        $util: util,
     };
 
     Page = options => {
@@ -257,4 +228,4 @@ function init(option) {
     if (!debug) return;
 }
 
-module.exports = init;
+export default init;
