@@ -1,8 +1,8 @@
-const Init = require('./utils/init');
+const init = require('./utils/init');
 const routes = require('./routes');
 const apis = require('./apis');
 
-const init = new Init({
+init({
     routes,
     apis,
     baseURL: {
@@ -13,8 +13,6 @@ const init = new Init({
     header: {},
     debug: true,
 });
-
-Init.start(init, true);
 
 App({
     onLaunch: function() {},
