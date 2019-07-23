@@ -1,4 +1,16 @@
-import util from './util';
+import util, { loading, logger, message, router, storage, promise } from './utils';
+import diff from './diff';
+
+// 将会diff计算出修改的内容
+function update(originData) {
+    return new Promise(resolve => {
+        let diffResult = diff(this.data, originData);
+        this.setData(diffResult, () => {
+            originData = JSON.parse(JSON.stringify(this.data || {}));
+            resolve();
+        });
+    })
+}
 
 const _Page = Page;
 const _Component = Component;
@@ -6,220 +18,44 @@ const _Component = Component;
 const ENVS = ['dev', 'pre', 'pro'];
 
 function init(option) {
-    const $routes = option.routes || {};
     const $baseURL = option.baseURL || {};
     const $apis = option.apis || {};
     const $header = option.header || {};
     const WE_ENV = option.WE_ENV || 'dev';
     const debug = option.debug || false;
 
-    /**
-     * 日志系统
-     * @type {{}}
-     */
-    const $logger = {
-        LogManager: wx.getLogManager(),
-        log(...arg) {
-            if (WE_ENV === 'pro') {
-                this.LogManager.log(...arg);
-            } else {
-                console.log(...arg);
-            }
-        },
-        error(...arg) {
-            if (WE_ENV === 'pro') {
-                this.LogManager.warn(...arg);
-            } else {
-                console.error(...arg);
-            }
-        }
-    };
 
-    /**
-     * 发送请求
-     * @param name
-     * @param params
-     * @returns {*}
-     */
-    const $fetch = (name, params = {}) => {
-        const path = $apis[name];
-
-        if (path) {
-            $logger.log(`${path}未配置API`);
-            return;
-        }
-
-        return new Promise((resolve, reject) => {
-            const data = params.data || {};
-            wx.request({
-                url: $baseURL[WE_ENV] + path,
-                data,
-                header: {
-                    ...$header,
-                    ...(params.header || {}),
-                },
-                method: params.method || 'GET',
-                dataType: 'json',
-                success(res) {
-                    $logger.log(`${path}请求成功：params=${JSON.stringify(data)} body=${JSON.stringify(res || {})}`)
-                    resolve(res);
-                },
-                fail(err) {
-                    $logger.error(`${path}请求失败`, err);
-                    reject(err);
-                }
-            })
-        })
-    };
-
-    /**
-     * 路由对象
-     * @type {{to(*, *=, *=): (undefined|*), push(*=, *=, *=): *, redirect(*=, *=): *, reLaunch(*=, *=): *, go(*=): *}}
-     */
-    const $router = {
-        to: (name, query, type) => {
-            const path = $routes[name];
-            if (path) {
-                console.log(`${path}未配置路由`)
-                return;
-            }
-            ;
-            return util.promise(type)({ url: util.joinURL(path, query) });
-        },
-
-        /**
-         * 路由跳转，需要实现声明路由表
-         * @param name 路由名称
-         * @param query 路由携带的参数 当为 true 或者 false 的时候表示 isTabbar
-         * @param isTabbar 是否为tab跳转 默认为 false
-         */
-        push(name, query = {}, isTabbar = false) {
-            let type = isTabbar ? 'navigateTo' : 'switchTab';
-            if (query === true) {
-                type = 'switchTab';
-                query = {};
-            }
-            ;
-            return this.to(name, query, type);
-        },
-        /**
-         * 路由重定向
-         * @param name
-         * @param query
-         * @returns {*}
-         */
-        redirect(name, query = {}) {
-            return this.to(name, query, 'redirectTo');
-        },
-        /**
-         * 关闭所有页面然后跳转页面
-         * @param name
-         * @param query
-         * @returns {*}
-         */
-        reLaunch(name, query = {}) {
-            return this.to(name, query, 'reLaunch');
-        },
-        /**
-         * 后退
-         * @param delta
-         * @returns {*}
-         */
-        go: (delta = 1) => {
-            return util.promise(wx.navigateBack)({ delta });
-        },
-    };
-
-    /**
-     * 本地数据管理
-     * @type {{get(*=, *=): *, set(*=, *=, *=): *, clear(*=): *, info(*=): *}}
-     */
-    const $storage = {
-        get: (key, isSync = false) => {
-            if (isSync) {
-                return wx.getStorageSync(key);
-            }
-            return util.promise('getStorage')({ key });
-        },
-        set: (key, value, isSync) => {
-            if (isSync) {
-                return wx.setStorageSync(key, value);
-            }
-            return util.promise('setStorage')({ key, data: value });
-        },
-        clear: (isSync) => {
-            if (isSync) {
-                return wx.clearStorageSync();
-            }
-            return util.promise('clearStorage')();
-        },
-        info: (isSync) => {
-            if (isSync) {
-                return wx.getStorageInfoSync();
-            }
-            return util.promise('getStorageInfo')();
-        }
-    };
-
-    /**
-     * 消息提示
-     * @type {{success(*=, *=): void, error(*=): void}}
-     */
-    const $message = {
-        success: (msg = '成功', duration = 1500) => {
-            wx.showToast({
-                title: msg,
-                icon: 'success',
-                duration
-            })
-        },
-        error: (msg = '失败', duration = 1500) => {
-            wx.showToast({
-                title: msg,
-                icon: 'success',
-                duration
-            })
-        },
-    };
-
-    /**
-     * loading
-     * @type {{start(*=): *, end(): *}}
-     */
-    const $loading = {
-        start: (title = '正在努力加载中...') => {
-            return util.promise('showLoading')({
-                title,
-                mask: true,
-            })
-        },
-        end: () => {
-            return util.promise('hideLoading')();
-        }
-    };
 
     // 聚合
     const init = {
-        $routes,
         $apis,
         WE_ENV,
-        $logger,
-        $fetch,
-        $router,
-        $storage,
-        $message,
-        $loading,
-        $util: util,
+        $logger: logger,
+        $router: router,
+        $storage: storage,
+        $message: message,
+        $loading: loading,
+        $utils: util,
+        $wx: promise,
     };
 
     Page = options => {
+        let originData = JSON.parse(JSON.stringify(options.data || {}));
+        const onLoad = options.onLoad || function() {};
+        options.onLoad = function(data) {
+            init.$routes = data;
+            this.$update = update.bind(this, originData);
+            return onLoad.apply(this);
+        }
         return _Page(Object.assign({}, options, init))
     };
+
     Component = options => {
-        const originAttached = options.attached || function() {
-        };
+        let originData = JSON.parse(JSON.stringify(options.data || {}));
+        const originAttached = options.attached || function() {};
         options.attached = function(e) {
             Object.assign(this, init);
+            this.$update = update.bind(this, originData);
             return originAttached.apply(this);
         }
         return _Component(options);

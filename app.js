@@ -1,16 +1,8 @@
 import init from './utils/init';
-import routes from './store/routes';
-import apis from './store/apis';
+import apis from './services/index';
 
 init({
-    routes,
     apis,
-    baseURL: {
-        dev: '',
-        pre: '',
-        pro: '',
-    },
-    header: {},
     debug: true,
 });
 
